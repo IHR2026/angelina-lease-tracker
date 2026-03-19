@@ -544,18 +544,69 @@ function toggleParcelLayer() {
   }
 }
 
+function fetchParcelsFromService() {
+  // Download parcels from Angelina CAD ArcGIS FeatureServer in batches
+  var baseUrl = 'https://utility.arcgis.com/usrsvcs/servers/0d57665b0361492397b48cbd4ad88ad6/rest/services/AngelinaCADWebService/FeatureServer';
+  var fields = 'prop_id,file_as_name,legal_acreage,legal_desc,abs_subdv_cd,land_val,market,situs_street,situs_city,geo_id,Deed_Date';
+  var batchSize = 2000;
+
+  return fetch(baseUrl + '/0/query?where=1%3D1&returnCountOnly=true&f=json')
+    .then(function(r) { return r.json(); })
+    .then(function(countData) {
+      var total = countData.count;
+      var label = document.getElementById('toggle-parcels').nextElementSibling;
+      var allFeatures = [];
+
+      function fetchBatch(offset) {
+        if (offset >= total) {
+          return { type: 'FeatureCollection', features: allFeatures };
+        }
+        var url = baseUrl + '/0/query?where=1%3D1&outFields=' + fields + '&outSR=4326&f=geojson&resultRecordCount=' + batchSize + '&resultOffset=' + offset;
+        return fetch(url)
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.features) allFeatures = allFeatures.concat(data.features);
+            var pct = Math.min(100, Math.floor(allFeatures.length / total * 100));
+            label.textContent = 'Loading parcels... ' + pct + '%';
+            return fetchBatch(offset + batchSize);
+          });
+      }
+
+      return fetchBatch(0);
+    });
+}
+
 function loadParcelLayer() {
   var label = document.getElementById('toggle-parcels').nextElementSibling;
   label.textContent = 'Loading parcels...';
 
-  // Load both parcels and abstracts from local GeoJSON files
+  // Load parcels from split files (or single file), with live service fallback
+  var parcelPromise = fetch('angelina_parcels.geojson').then(function(r) {
+    if (!r.ok) throw new Error('single file not found');
+    return r.json();
+  }).catch(function() {
+    // Try loading split parts
+    label.textContent = 'Loading parcels (parts)...';
+    return Promise.all([
+      fetch('parcels_p0.geojson').then(function(r) { return r.ok ? r.json() : null; }),
+      fetch('parcels_p1.geojson').then(function(r) { return r.ok ? r.json() : null; }),
+      fetch('parcels_p2.geojson').then(function(r) { return r.ok ? r.json() : null; }),
+      fetch('parcels_p3.geojson').then(function(r) { return r.ok ? r.json() : null; })
+    ]).then(function(parts) {
+      var allFeatures = [];
+      parts.forEach(function(p) { if (p && p.features) allFeatures = allFeatures.concat(p.features); });
+      if (allFeatures.length === 0) throw new Error('no parts found');
+      return { type: 'FeatureCollection', features: allFeatures };
+    });
+  }).catch(function() {
+    label.textContent = 'Downloading parcels from county...';
+    return fetchParcelsFromService();
+  });
+
   Promise.all([
-    fetch('angelina_parcels.geojson').then(function(r) {
-      if (!r.ok) throw new Error('angelina_parcels.geojson not found. Run: python download_data.py');
-      return r.json();
-    }),
+    parcelPromise,
     fetch('angelina_abstracts.geojson').then(function(r) {
-      if (!r.ok) throw new Error('angelina_abstracts.geojson not found. Run: python download_data.py');
+      if (!r.ok) throw new Error('abstracts not found');
       return r.json();
     })
   ]).then(function(results) {
