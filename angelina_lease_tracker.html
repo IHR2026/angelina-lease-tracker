@@ -536,8 +536,8 @@ function toggleParcelLayer() {
   var checked = document.getElementById('toggle-parcels').checked;
   var z = map.getZoom();
   if (checked) {
-    if (abstractLayer && z >= 12) map.addLayer(abstractLayer);
-    if (parcelLayer && z >= 14) map.addLayer(parcelLayer);
+    if (abstractLayer && z >= 11) map.addLayer(abstractLayer);
+    if (parcelLayer && z >= 11) map.addLayer(parcelLayer);
   } else {
     if (parcelLayer && map.hasLayer(parcelLayer)) map.removeLayer(parcelLayer);
     if (abstractLayer && map.hasLayer(abstractLayer)) map.removeLayer(abstractLayer);
@@ -706,7 +706,7 @@ function loadParcelLayer() {
           selectedParcel = layer;
         });
       },
-      minZoom: 13
+      minZoom: 11
     });
 
     // Clear highlight when popup closes — restore base style
@@ -726,11 +726,11 @@ function loadParcelLayer() {
       var z = map.getZoom();
       var checked = document.getElementById('toggle-parcels').checked;
       // Abstracts show at zoom 12+
-      if (checked && z >= 12 && !map.hasLayer(abstractLayer)) map.addLayer(abstractLayer);
-      if ((!checked || z < 12) && map.hasLayer(abstractLayer)) map.removeLayer(abstractLayer);
-      // Parcels show at zoom 14+
-      if (checked && z >= 14 && !map.hasLayer(parcelLayer)) map.addLayer(parcelLayer);
-      if ((!checked || z < 14) && map.hasLayer(parcelLayer)) map.removeLayer(parcelLayer);
+      if (checked && z >= 11 && !map.hasLayer(abstractLayer)) map.addLayer(abstractLayer);
+      if ((!checked || z < 11) && map.hasLayer(abstractLayer)) map.removeLayer(abstractLayer);
+      // Parcels show at zoom 11+
+      if (checked && z >= 11 && !map.hasLayer(parcelLayer)) map.addLayer(parcelLayer);
+      if ((!checked || z < 11) && map.hasLayer(parcelLayer)) map.removeLayer(parcelLayer);
     }
     map.on('zoomend', updateParcelVisibility);
     updateParcelVisibility();
